@@ -1,10 +1,13 @@
 use crate::Layout;
+use async_call::{
+    register_service, send_request_typed, serve_requests_typed, ServiceRegistration, SrvId,
+};
 use ggez::event::{EventHandler, MouseButton};
 use ggez::graphics::{self, Align, DrawMode, DrawParam, MeshBuilder, Rect, Text};
 use ggez::nalgebra::Point2;
 use ggez::{Context, GameResult};
 
-#[derive(Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum ButtonMode {
     Button,
     Checkbox(bool),
@@ -19,7 +22,7 @@ impl Default for ButtonMode {
 }
 
 #[derive(Clone, Default)]
-pub struct State {
+pub struct ButtonState {
     mode: ButtonMode,
     touched: bool,
     label: String,
@@ -27,13 +30,13 @@ pub struct State {
 }
 
 pub trait ButtonSkin: EventHandler + Default {
-    fn set_state(&mut self, state: &State);
+    fn set_state(&mut self, state: &ButtonState);
     fn is_hot_area(&self, x: f32, y: f32) -> bool;
 }
 
 #[derive(Default)]
 pub struct DefaultButtonSkin {
-    state: State,
+    state: ButtonState,
 }
 
 const MARGIN: f32 = 5.;
@@ -100,7 +103,7 @@ impl EventHandler for DefaultButtonSkin {
 }
 
 impl ButtonSkin for DefaultButtonSkin {
-    fn set_state(&mut self, state: &State) {
+    fn set_state(&mut self, state: &ButtonState) {
         self.state = state.clone();
     }
     fn is_hot_area(&self, x: f32, y: f32) -> bool {
@@ -109,16 +112,38 @@ impl ButtonSkin for DefaultButtonSkin {
     }
 }
 
+#[derive(Copy, Clone)]
+struct ButtonId(SrvId);
+
+#[derive(Copy, Clone, Debug)]
+enum ButtonOp {
+    GetMode,
+    SetMode(ButtonMode),
+}
+
+impl ButtonId {
+    async fn get_mode(self) -> ButtonMode {
+        send_request_typed(self.0, ButtonOp::GetMode).await.unwrap()
+    }
+    async fn set_mode(self, mode: ButtonMode) {
+        send_request_typed(self.0, ButtonOp::SetMode(mode))
+            .await
+            .unwrap()
+    }
+}
+
 pub struct Button<S: ButtonSkin> {
-    state: State,
+    state: ButtonState,
     skin: S,
+    reg: ServiceRegistration,
 }
 
 impl<S: ButtonSkin> Button<S> {
     pub fn new() -> Self {
         Self {
-            state: State::default(),
+            state: ButtonState::default(),
             skin: S::default(),
+            reg: register_service(),
         }
     }
     pub fn mode(&mut self, mode: ButtonMode) {
@@ -137,6 +162,13 @@ impl<S: ButtonSkin> Layout for Button<S> {
 
 impl<S: ButtonSkin> EventHandler for Button<S> {
     fn update(&mut self, ctx: &mut Context) -> GameResult {
+        serve_requests_typed(self.reg.id(), |req| match req {
+            ButtonOp::GetMode => Some(Box::new(self.state.mode)),
+            ButtonOp::SetMode(mode) => {
+                self.state.mode = mode;
+                Some(Box::new(()))
+            }
+        });
         self.skin.set_state(&self.state);
         Ok(())
     }
