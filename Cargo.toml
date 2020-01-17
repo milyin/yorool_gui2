@@ -8,4 +8,5 @@ edition = "2018"
 
 [dependencies]
 ggez="0.5.1"
+async-std = "1.4.0"
 async-call={git = "https://github.com/milyin/async-call"}
