@@ -5,34 +5,34 @@ use ggez::nalgebra::Point2;
 use ggez::{Context, GameResult};
 
 #[derive(Clone)]
-pub enum Mode {
+pub enum ButtonMode {
     Button,
     Checkbox(bool),
     Radio(bool),
     //Checkbox3State(), - or even N-state, may be added later
 }
 
-impl Default for Mode {
+impl Default for ButtonMode {
     fn default() -> Self {
-        Mode::Checkbox(false)
+        ButtonMode::Checkbox(false)
     }
 }
 
 #[derive(Clone, Default)]
 pub struct State {
-    mode: Mode,
+    mode: ButtonMode,
     touched: bool,
     label: String,
     rect: Rect,
 }
 
-pub trait Skin: EventHandler + Default {
+pub trait ButtonSkin: EventHandler + Default {
     fn set_state(&mut self, state: &State);
     fn is_hot_area(&self, x: f32, y: f32) -> bool;
 }
 
 #[derive(Default)]
-pub struct DefaultSkin {
+pub struct DefaultButtonSkin {
     state: State,
 }
 
@@ -56,14 +56,14 @@ fn button_rect(mut rect: Rect, touched: bool) -> Rect {
     rect
 }
 
-impl EventHandler for DefaultSkin {
+impl EventHandler for DefaultButtonSkin {
     fn update(&mut self, ctx: &mut Context) -> GameResult {
         Ok(())
     }
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult {
         match &self.state.mode {
-            Mode::Button => {
+            ButtonMode::Button => {
                 let rect = button_rect(self.state.rect, self.state.touched);
                 let mesh = MeshBuilder::new()
                     .rectangle(DrawMode::fill(), rect, graphics::WHITE)
@@ -78,7 +78,7 @@ impl EventHandler for DefaultSkin {
                     (Point2::new(rect.x, rect.y + tdh), graphics::BLACK),
                 )
             }
-            Mode::Checkbox(checked) => {
+            ButtonMode::Checkbox(checked) => {
                 let rect = base_rect(self.state.rect);
                 let mesh = MeshBuilder::new()
                     .rectangle(
@@ -99,7 +99,7 @@ impl EventHandler for DefaultSkin {
     }
 }
 
-impl Skin for DefaultSkin {
+impl ButtonSkin for DefaultButtonSkin {
     fn set_state(&mut self, state: &State) {
         self.state = state.clone();
     }
@@ -109,21 +109,24 @@ impl Skin for DefaultSkin {
     }
 }
 
-pub struct Button<S: Skin> {
+pub struct Button<S: ButtonSkin> {
     state: State,
     skin: S,
 }
 
-impl<S: Skin> Button<S> {
+impl<S: ButtonSkin> Button<S> {
     pub fn new() -> Self {
         Self {
             state: State::default(),
             skin: S::default(),
         }
     }
+    pub fn mode(&mut self, mode: ButtonMode) {
+        self.state.mode = mode
+    }
 }
 
-impl<S: Skin> Layout for Button<S> {
+impl<S: ButtonSkin> Layout for Button<S> {
     fn set_rect(&mut self, rect: Rect) {
         self.state.rect = rect;
     }
@@ -132,7 +135,7 @@ impl<S: Skin> Layout for Button<S> {
     }
 }
 
-impl<S: Skin> EventHandler for Button<S> {
+impl<S: ButtonSkin> EventHandler for Button<S> {
     fn update(&mut self, ctx: &mut Context) -> GameResult {
         self.skin.set_state(&self.state);
         Ok(())
@@ -153,11 +156,30 @@ impl<S: Skin> EventHandler for Button<S> {
             self.state.touched = false;
             if self.skin.is_hot_area(x, y) {
                 match &self.state.mode {
-                    Mode::Button => {}
-                    Mode::Checkbox(check) => self.state.mode = Mode::Checkbox(!*check),
+                    ButtonMode::Button => {}
+                    ButtonMode::Checkbox(check) => self.state.mode = ButtonMode::Checkbox(!*check),
                     _ => panic!(),
                 }
             }
         }
+    }
+}
+
+pub struct ButtonBuilder<S: ButtonSkin = DefaultButtonSkin> {
+    button: Button<S>,
+}
+
+impl<S: ButtonSkin> ButtonBuilder<S> {
+    pub fn new() -> Self {
+        Self {
+            button: Button::new(),
+        }
+    }
+    pub fn mode(mut self, mode: ButtonMode) -> Self {
+        self.button.mode(mode);
+        self
+    }
+    pub fn build(self) -> Button<S> {
+        self.button
     }
 }
