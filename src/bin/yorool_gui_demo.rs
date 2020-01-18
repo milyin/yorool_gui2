@@ -4,8 +4,9 @@ use ggez::event;
 use ggez::event::{EventHandler, MouseButton};
 use ggez::graphics::{self, Color};
 use ggez::{Context, ContextBuilder, GameResult};
-use yorool_gui2::button::{ButtonBuilder, ButtonMode, DefaultButtonSkin};
-use yorool_gui2::ribbon::{RibbonBuilder, RibbonOrientation};
+use yorool_gui2::button::ButtonMode;
+use yorool_gui2::default_skin::{DefaultButtonBuilder, DefaultRibbonBuilder};
+use yorool_gui2::ribbon::RibbonOrientation;
 use yorool_gui2::Widget;
 
 struct GuiDemoState<'a> {
@@ -14,13 +15,13 @@ struct GuiDemoState<'a> {
 
 impl<'a> GuiDemoState<'a> {
     fn new() -> Self {
-        let checkbox1 = ButtonBuilder::<DefaultButtonSkin>::new()
+        let checkbox1 = DefaultButtonBuilder::new()
             .mode(ButtonMode::Checkbox(false))
             .build();
-        let checkbox2 = ButtonBuilder::<DefaultButtonSkin>::new()
+        let checkbox2 = DefaultButtonBuilder::new()
             .mode(ButtonMode::Checkbox(true))
             .build();
-        let button = ButtonBuilder::<DefaultButtonSkin>::new()
+        let button = DefaultButtonBuilder::new()
             .mode(ButtonMode::Button)
             .on_click({
                 let checkbox1 = checkbox1.id();
@@ -33,12 +34,12 @@ impl<'a> GuiDemoState<'a> {
                 }
             })
             .build();
-        let checkboxes = RibbonBuilder::new()
+        let checkboxes = DefaultRibbonBuilder::new()
             .orientation(RibbonOrientation::Horizontal)
             .add_widget(checkbox1)
             .add_widget(checkbox2)
             .build();
-        let root = RibbonBuilder::new()
+        let root = DefaultRibbonBuilder::new()
             .orientation(RibbonOrientation::Vertical)
             .add_widget(checkboxes)
             .add_widget(button)
