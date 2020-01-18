@@ -4,7 +4,7 @@ use ggez::event;
 use ggez::event::{EventHandler, MouseButton};
 use ggez::graphics::{self, Color};
 use ggez::{Context, ContextBuilder, GameResult};
-use yorool_gui2::button::{Button, ButtonBuilder, ButtonMode, DefaultButtonSkin};
+use yorool_gui2::button::{ButtonBuilder, ButtonMode, DefaultButtonSkin};
 use yorool_gui2::ribbon::{RibbonBuilder, RibbonOrientation};
 use yorool_gui2::Widget;
 
@@ -20,17 +20,15 @@ impl<'a> GuiDemoState<'a> {
         let checkbox2 = ButtonBuilder::<DefaultButtonSkin>::new()
             .mode(ButtonMode::Checkbox(true))
             .build();
-        let pcheckbox1 = checkbox1.id();
-        let pcheckbox2 = checkbox2.id();
         let button = ButtonBuilder::<DefaultButtonSkin>::new()
             .mode(ButtonMode::Button)
             .on_click({
-                //    let checkbox1 = checkbox1.id();
-                //    let checkbox2 = checkbox2.id();
-                |_| {
+                let checkbox1 = checkbox1.id();
+                let checkbox2 = checkbox2.id();
+                move |_| {
                     task::spawn(async move {
-                        pcheckbox1.set_mode(ButtonMode::Checkbox(false)).await;
-                        pcheckbox2.set_mode(ButtonMode::Checkbox(false)).await;
+                        checkbox1.set_mode(ButtonMode::Checkbox(false)).await;
+                        checkbox2.set_mode(ButtonMode::Checkbox(false)).await;
                     });
                 }
             })

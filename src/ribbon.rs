@@ -103,7 +103,7 @@ impl<'a> RibbonBuilder<'a> {
         }
     }
     pub fn orientation(mut self, orientation: RibbonOrientation) -> Self {
-        self.ribbon.orientation = orientation;
+        self.ribbon.orientation(orientation);
         self
     }
     pub fn add_widget<W: Widget + 'a>(mut self, widget: W) -> Self {

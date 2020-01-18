@@ -61,7 +61,7 @@ fn button_rect(mut rect: Rect, touched: bool) -> Rect {
 }
 
 impl EventHandler for DefaultButtonSkin {
-    fn update(&mut self, ctx: &mut Context) -> GameResult {
+    fn update(&mut self, _ctx: &mut Context) -> GameResult {
         Ok(())
     }
 
@@ -170,7 +170,7 @@ impl<'a, S: ButtonSkin> Layout for Button<'a, S> {
 }
 
 impl<'a, S: ButtonSkin> EventHandler for Button<'a, S> {
-    fn update(&mut self, ctx: &mut Context) -> GameResult {
+    fn update(&mut self, _ctx: &mut Context) -> GameResult {
         serve_requests_typed(self.reg.id(), |req| match req {
             ButtonOp::GetMode => Some(Box::new(self.state.mode)),
             ButtonOp::SetMode(mode) => {
@@ -186,23 +186,35 @@ impl<'a, S: ButtonSkin> EventHandler for Button<'a, S> {
         self.skin.draw(ctx)
     }
 
-    fn mouse_button_down_event(&mut self, ctx: &mut Context, button: MouseButton, x: f32, y: f32) {
-        if self.skin.is_hot_area(x, y) {
-            self.state.touched = true;
+    fn mouse_button_down_event(
+        &mut self,
+        _ctx: &mut Context,
+        _button: MouseButton,
+        x: f32,
+        y: f32,
+    ) {
+        if _button == MouseButton::Left {
+            if self.skin.is_hot_area(x, y) {
+                self.state.touched = true;
+            }
         }
     }
 
-    fn mouse_button_up_event(&mut self, ctx: &mut Context, button: MouseButton, x: f32, y: f32) {
-        if self.state.touched {
-            self.state.touched = false;
-            if self.skin.is_hot_area(x, y) {
-                match &self.state.mode {
-                    ButtonMode::Button => {}
-                    ButtonMode::Checkbox(check) => self.state.mode = ButtonMode::Checkbox(!*check),
-                    _ => panic!(),
-                }
-                for handler in self.on_click_handlers.clone() {
-                    handler(self)
+    fn mouse_button_up_event(&mut self, _ctx: &mut Context, button: MouseButton, x: f32, y: f32) {
+        if button == MouseButton::Left {
+            if self.state.touched {
+                self.state.touched = false;
+                if self.skin.is_hot_area(x, y) {
+                    match &self.state.mode {
+                        ButtonMode::Button => {}
+                        ButtonMode::Checkbox(check) => {
+                            self.state.mode = ButtonMode::Checkbox(!*check)
+                        }
+                        _ => panic!(),
+                    }
+                    for handler in self.on_click_handlers.clone() {
+                        handler(self)
+                    }
                 }
             }
         }
