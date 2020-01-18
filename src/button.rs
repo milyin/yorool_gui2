@@ -155,8 +155,11 @@ impl<'a, S: ButtonSkin> Button<'a, S> {
     pub fn mode(&mut self, mode: ButtonMode) {
         self.state.mode = mode
     }
-    pub fn on_click(&mut self, handler: Rc<dyn Fn(&mut Self) + 'a>) {
+    pub fn on_click_rc(&mut self, handler: Rc<dyn Fn(&mut Self) + 'a>) {
         self.on_click_handlers.push(handler)
+    }
+    pub fn on_click<F: Fn(&mut Button<'a, S>) + 'a>(&mut self, f: F) {
+        self.on_click_rc(Rc::new(f))
     }
 }
 
@@ -235,8 +238,12 @@ impl<'a, S: ButtonSkin> ButtonBuilder<'a, S> {
         self.button.mode(mode);
         self
     }
+    pub fn on_click_rc(mut self, handler: Rc<dyn Fn(&mut Button<'a, S>) + 'a>) -> Self {
+        self.button.on_click_rc(handler);
+        self
+    }
     pub fn on_click<F: Fn(&mut Button<'a, S>) + 'a>(mut self, f: F) -> Self {
-        self.button.on_click(Rc::new(f));
+        self.button.on_click(f);
         self
     }
     pub fn build(self) -> Button<'a, S> {
