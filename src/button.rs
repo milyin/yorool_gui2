@@ -1,7 +1,5 @@
 use crate::Layout;
-use async_call::{
-    register_service, send_request_typed, serve_requests_typed, ServiceRegistration, SrvId,
-};
+use async_call::{register_service, send_request, serve_requests, ServiceRegistration, SrvId};
 use ggez::event::{EventHandler, MouseButton};
 use ggez::graphics::Rect;
 use ggez::{Context, GameResult};
@@ -17,7 +15,7 @@ pub enum ButtonMode {
 
 impl Default for ButtonMode {
     fn default() -> Self {
-        ButtonMode::Checkbox(false)
+        ButtonMode::Button
     }
 }
 
@@ -45,12 +43,10 @@ enum ButtonOp {
 
 impl ButtonId {
     pub async fn get_mode(self) -> ButtonMode {
-        send_request_typed(self.0, ButtonOp::GetMode).await.unwrap()
+        send_request(self.0, ButtonOp::GetMode).await.unwrap()
     }
     pub async fn set_mode(self, mode: ButtonMode) {
-        send_request_typed(self.0, ButtonOp::SetMode(mode))
-            .await
-            .unwrap()
+        send_request(self.0, ButtonOp::SetMode(mode)).await.unwrap()
     }
 }
 
@@ -95,7 +91,7 @@ impl<'a, S: ButtonSkin> Layout for Button<'a, S> {
 
 impl<'a, S: ButtonSkin> EventHandler for Button<'a, S> {
     fn update(&mut self, _ctx: &mut Context) -> GameResult {
-        serve_requests_typed(self.reg.id(), |req| match req {
+        serve_requests(self.reg.id(), |req| match req {
             ButtonOp::GetMode => Some(Box::new(self.state.mode)),
             ButtonOp::SetMode(mode) => {
                 self.state.mode = mode;
