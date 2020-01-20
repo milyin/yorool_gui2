@@ -1,5 +1,6 @@
 use ggez::event::EventHandler;
 use ggez::graphics::Rect;
+use std::fmt::{Debug, Formatter};
 
 pub mod button;
 pub mod default_skin;
@@ -10,5 +11,11 @@ pub trait Layout {
     fn get_rect(&self) -> Rect;
 }
 
-pub trait Widget: Layout + EventHandler {}
-impl<W> Widget for W where W: Layout + EventHandler {}
+pub trait Widget: Layout + EventHandler + Send {}
+impl<W> Widget for W where W: Layout + EventHandler + Send {}
+
+impl Debug for dyn Widget {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "WIDGET")
+    }
+}

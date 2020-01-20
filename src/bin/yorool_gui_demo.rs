@@ -9,11 +9,11 @@ use yorool_gui2::default_skin::{DefaultButtonBuilder, DefaultRibbonBuilder};
 use yorool_gui2::ribbon::RibbonOrientation;
 use yorool_gui2::Widget;
 
-struct GuiDemoState<'a> {
-    root: Box<dyn Widget + 'a>,
+struct GuiDemoState {
+    root: Box<dyn Widget>,
 }
 
-impl<'a> GuiDemoState<'a> {
+impl GuiDemoState {
     fn new() -> Self {
         let checkbox1 = DefaultButtonBuilder::new()
             .mode(ButtonMode::Checkbox(false))
@@ -50,7 +50,7 @@ impl<'a> GuiDemoState<'a> {
     }
 }
 
-impl<'a> EventHandler for GuiDemoState<'a> {
+impl EventHandler for GuiDemoState {
     fn update(&mut self, ctx: &mut Context) -> GameResult {
         self.root.update(ctx)
     }

@@ -3,7 +3,6 @@ use async_call::{register_service, send_request, serve_requests, ServiceRegistra
 use ggez::event::{EventHandler, MouseButton};
 use ggez::graphics::Rect;
 use ggez::{Context, GameResult};
-use std::rc::Rc;
 
 #[derive(Copy, Clone, Debug)]
 pub enum ButtonMode {
@@ -35,10 +34,17 @@ pub trait ButtonSkin: EventHandler + Default {
 #[derive(Copy, Clone)]
 pub struct ButtonId(SrvId);
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Debug)]
 enum ButtonOp {
+    None,
     GetMode,
     SetMode(ButtonMode),
+}
+
+impl Default for ButtonOp {
+    fn default() -> Self {
+        ButtonOp::None
+    }
 }
 
 impl ButtonId {
@@ -50,14 +56,14 @@ impl ButtonId {
     }
 }
 
-pub struct Button<'a, S: ButtonSkin> {
+pub struct Button<S: ButtonSkin> {
     state: ButtonState,
     skin: S,
     reg: ServiceRegistration,
-    on_click_handlers: Vec<Rc<dyn Fn(&mut Self) + 'a>>,
+    on_click_handlers: Vec<Box<dyn Fn(&mut Self) + Send>>,
 }
 
-impl<'a, S: ButtonSkin> Button<'a, S> {
+impl<S: ButtonSkin> Button<S> {
     pub fn new() -> Self {
         Self {
             state: ButtonState::default(),
@@ -72,15 +78,12 @@ impl<'a, S: ButtonSkin> Button<'a, S> {
     pub fn mode(&mut self, mode: ButtonMode) {
         self.state.mode = mode
     }
-    pub fn on_click_rc(&mut self, handler: Rc<dyn Fn(&mut Self) + 'a>) {
-        self.on_click_handlers.push(handler)
-    }
-    pub fn on_click<F: Fn(&mut Button<'a, S>) + 'a>(&mut self, f: F) {
-        self.on_click_rc(Rc::new(f))
+    pub fn on_click<F: Fn(&mut Button<S>) + Send + 'static>(&mut self, f: F) {
+        self.on_click_handlers.push(Box::new(f))
     }
 }
 
-impl<'a, S: ButtonSkin> Layout for Button<'a, S> {
+impl<S: ButtonSkin> Layout for Button<S> {
     fn set_rect(&mut self, rect: Rect) {
         self.state.rect = rect;
     }
@@ -89,7 +92,7 @@ impl<'a, S: ButtonSkin> Layout for Button<'a, S> {
     }
 }
 
-impl<'a, S: ButtonSkin> EventHandler for Button<'a, S> {
+impl<S: ButtonSkin> EventHandler for Button<S> {
     fn update(&mut self, _ctx: &mut Context) -> GameResult {
         serve_requests(self.reg.id(), |req| match req {
             ButtonOp::GetMode => Some(Box::new(self.state.mode)),
@@ -97,6 +100,7 @@ impl<'a, S: ButtonSkin> EventHandler for Button<'a, S> {
                 self.state.mode = mode;
                 Some(Box::new(()))
             }
+            ButtonOp::None => panic!("ButtonOp::None request not expected"),
         });
         self.skin.set_state(&self.state);
         Ok(())
@@ -132,20 +136,22 @@ impl<'a, S: ButtonSkin> EventHandler for Button<'a, S> {
                         }
                         _ => panic!(),
                     }
-                    for handler in self.on_click_handlers.clone() {
-                        handler(self)
+                    let handlers = std::mem::replace(&mut self.on_click_handlers, Vec::new());
+                    for handler in &handlers {
+                        handler(self);
                     }
+                    self.on_click_handlers = handlers;
                 }
             }
         }
     }
 }
 
-pub struct ButtonBuilder<'a, S: ButtonSkin> {
-    button: Button<'a, S>,
+pub struct ButtonBuilder<S: ButtonSkin> {
+    button: Button<S>,
 }
 
-impl<'a, S: ButtonSkin> ButtonBuilder<'a, S> {
+impl<S: ButtonSkin> ButtonBuilder<S> {
     pub fn new() -> Self {
         Self {
             button: Button::new(),
@@ -155,15 +161,11 @@ impl<'a, S: ButtonSkin> ButtonBuilder<'a, S> {
         self.button.mode(mode);
         self
     }
-    pub fn on_click_rc(mut self, handler: Rc<dyn Fn(&mut Button<'a, S>) + 'a>) -> Self {
-        self.button.on_click_rc(handler);
-        self
-    }
-    pub fn on_click<F: Fn(&mut Button<'a, S>) + 'a>(mut self, f: F) -> Self {
+    pub fn on_click<F: Fn(&mut Button<S>) + Send + 'static>(mut self, f: F) -> Self {
         self.button.on_click(f);
         self
     }
-    pub fn build(self) -> Button<'a, S> {
+    pub fn build(self) -> Button<S> {
         self.button
     }
 }

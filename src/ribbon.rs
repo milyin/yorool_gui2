@@ -1,5 +1,7 @@
+use crate::ribbon::RibbonOp::AddWidet;
 use crate::ribbon::RibbonOrientation::Horizontal;
 use crate::{Layout, Widget};
+use async_call::{register_service, send_request, serve_requests, ServiceRegistration, SrvId};
 use ggez::event::{EventHandler, MouseButton};
 use ggez::graphics::Rect;
 use ggez::{Context, GameResult};
@@ -15,13 +17,37 @@ impl Default for RibbonOrientation {
     }
 }
 
-pub struct Ribbon<'a> {
-    widgets: Vec<Box<dyn Widget + 'a>>,
+pub struct Ribbon {
+    widgets: Vec<Box<dyn Widget>>,
     rect: Rect,
     orientation: RibbonOrientation,
+    reg: ServiceRegistration,
 }
 
-impl Layout for Ribbon<'_> {
+#[derive(Copy, Clone)]
+pub struct RibbonId(SrvId);
+
+#[derive(Debug)]
+pub enum RibbonOp {
+    None,
+    AddWidet(Box<dyn Widget>),
+}
+
+impl Default for RibbonOp {
+    fn default() -> Self {
+        RibbonOp::None
+    }
+}
+
+impl RibbonId {
+    pub async fn add_widget(self, widget: impl Widget + 'static) {
+        send_request(self.0, AddWidet(Box::new(widget)))
+            .await
+            .unwrap()
+    }
+}
+
+impl Layout for Ribbon {
     fn set_rect(&mut self, rect: Rect) {
         self.rect = rect;
         match &self.orientation {
@@ -48,24 +74,36 @@ impl Layout for Ribbon<'_> {
     }
 }
 
-impl<'a> Ribbon<'a> {
-    fn new() -> Self {
+impl Ribbon {
+    pub fn new() -> Self {
         Self {
             widgets: Vec::new(),
             rect: Rect::default(),
             orientation: RibbonOrientation::default(),
+            reg: register_service(),
         }
     }
-    fn orientation(&mut self, orientation: RibbonOrientation) {
+    pub fn orientation(&mut self, orientation: RibbonOrientation) {
         self.orientation = orientation
     }
-    fn add_widget<W: Widget + 'a>(&mut self, widget: W) {
-        self.widgets.push(Box::new(widget))
+    pub fn add_widget_box(&mut self, widget: Box<dyn Widget>) {
+        self.widgets.push(widget)
+    }
+    pub fn add_widget(&mut self, widget: impl Widget + 'static) {
+        self.add_widget_box(Box::new(widget))
     }
 }
 
-impl EventHandler for Ribbon<'_> {
+impl EventHandler for Ribbon {
     fn update(&mut self, ctx: &mut Context) -> GameResult {
+        serve_requests(self.reg.id(), |req| match req {
+            RibbonOp::AddWidet(w) => {
+                self.add_widget_box(w);
+                Some(Box::new(()))
+            }
+            RibbonOp::None => panic!("RibbonOp::None request not expected"),
+        });
+
         for w in &mut self.widgets {
             w.update(ctx)?
         }
@@ -92,11 +130,11 @@ impl EventHandler for Ribbon<'_> {
     }
 }
 
-pub struct RibbonBuilder<'a> {
-    ribbon: Ribbon<'a>,
+pub struct RibbonBuilder {
+    ribbon: Ribbon,
 }
 
-impl<'a> RibbonBuilder<'a> {
+impl RibbonBuilder {
     pub fn new() -> Self {
         Self {
             ribbon: Ribbon::new(),
@@ -106,11 +144,11 @@ impl<'a> RibbonBuilder<'a> {
         self.ribbon.orientation(orientation);
         self
     }
-    pub fn add_widget<W: Widget + 'a>(mut self, widget: W) -> Self {
+    pub fn add_widget(mut self, widget: impl Widget + 'static) -> Self {
         self.ribbon.add_widget(widget);
         self
     }
-    pub fn build(self) -> Ribbon<'a> {
+    pub fn build(self) -> Ribbon {
         self.ribbon
     }
 }

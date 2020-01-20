@@ -4,5 +4,5 @@ use crate::ribbon::RibbonBuilder;
 
 pub mod button;
 
-pub type DefaultButtonBuilder<'a> = ButtonBuilder<'a, DefaultButtonSkin>;
-pub type DefaultRibbonBuilder<'a> = RibbonBuilder<'a>;
+pub type DefaultButtonBuilder = ButtonBuilder<DefaultButtonSkin>;
+pub type DefaultRibbonBuilder = RibbonBuilder;
