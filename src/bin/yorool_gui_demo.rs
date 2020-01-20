@@ -21,23 +21,31 @@ impl GuiDemoState {
         let checkbox2 = DefaultButtonBuilder::new()
             .mode(ButtonMode::Checkbox(true))
             .build();
-        let button = DefaultButtonBuilder::new()
-            .mode(ButtonMode::Button)
-            .on_click({
-                let checkbox1 = checkbox1.id();
-                let checkbox2 = checkbox2.id();
-                move |_| {
-                    task::spawn(async move {
-                        checkbox1.set_mode(ButtonMode::Checkbox(false)).await;
-                        checkbox2.set_mode(ButtonMode::Checkbox(false)).await;
-                    });
-                }
-            })
-            .build();
+        let checkbox1id = checkbox1.id();
+        let checkbox2id = checkbox2.id();
         let checkboxes = DefaultRibbonBuilder::new()
             .orientation(RibbonOrientation::Horizontal)
             .add_widget(checkbox1)
             .add_widget(checkbox2)
+            .build();
+        let checkboxesid = checkboxes.id();
+        let button = DefaultButtonBuilder::new()
+            .mode(ButtonMode::Button)
+            .on_click({
+                move |_| {
+                    task::spawn(async move {
+                        checkbox1id.set_mode(ButtonMode::Checkbox(false)).await;
+                        checkbox2id.set_mode(ButtonMode::Checkbox(false)).await;
+                        checkboxesid
+                            .add_widget(
+                                DefaultButtonBuilder::new()
+                                    .mode(ButtonMode::Checkbox(false))
+                                    .build(),
+                            )
+                            .await;
+                    });
+                }
+            })
             .build();
         let root = DefaultRibbonBuilder::new()
             .orientation(RibbonOrientation::Vertical)

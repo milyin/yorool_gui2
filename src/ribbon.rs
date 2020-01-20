@@ -1,5 +1,4 @@
 use crate::ribbon::RibbonOp::AddWidet;
-use crate::ribbon::RibbonOrientation::Horizontal;
 use crate::{Layout, Widget};
 use async_call::{register_service, send_request, serve_requests, ServiceRegistration, SrvId};
 use ggez::event::{EventHandler, MouseButton};
@@ -9,12 +8,6 @@ use ggez::{Context, GameResult};
 pub enum RibbonOrientation {
     Horizontal,
     Vertical,
-}
-
-impl Default for RibbonOrientation {
-    fn default() -> Self {
-        Horizontal
-    }
 }
 
 pub struct Ribbon {
@@ -43,6 +36,37 @@ impl RibbonId {
 impl Layout for Ribbon {
     fn set_rect(&mut self, rect: Rect) {
         self.rect = rect;
+        self.update_widgets_rects();
+    }
+    fn get_rect(&self) -> Rect {
+        self.rect
+    }
+}
+
+impl Ribbon {
+    pub fn new() -> Self {
+        Self {
+            widgets: Vec::new(),
+            rect: Rect::default(),
+            orientation: RibbonOrientation::Horizontal,
+            reg: register_service(),
+        }
+    }
+    pub fn orientation(&mut self, orientation: RibbonOrientation) {
+        self.orientation = orientation
+    }
+    pub fn add_widget_box(&mut self, widget: Box<dyn Widget>) {
+        self.widgets.push(widget);
+        self.update_widgets_rects();
+    }
+    pub fn add_widget(&mut self, widget: impl Widget + 'static) {
+        self.add_widget_box(Box::new(widget))
+    }
+    pub fn id(&self) -> RibbonId {
+        RibbonId(self.reg.id())
+    }
+    fn update_widgets_rects(&mut self) {
+        let rect = self.rect;
         match &self.orientation {
             RibbonOrientation::Horizontal => {
                 let dw = rect.w / self.widgets.len() as f32;
@@ -61,29 +85,6 @@ impl Layout for Ribbon {
                 }
             }
         }
-    }
-    fn get_rect(&self) -> Rect {
-        self.rect
-    }
-}
-
-impl Ribbon {
-    pub fn new() -> Self {
-        Self {
-            widgets: Vec::new(),
-            rect: Rect::default(),
-            orientation: RibbonOrientation::default(),
-            reg: register_service(),
-        }
-    }
-    pub fn orientation(&mut self, orientation: RibbonOrientation) {
-        self.orientation = orientation
-    }
-    pub fn add_widget_box(&mut self, widget: Box<dyn Widget>) {
-        self.widgets.push(widget)
-    }
-    pub fn add_widget(&mut self, widget: impl Widget + 'static) {
-        self.add_widget_box(Box::new(widget))
     }
 }
 
