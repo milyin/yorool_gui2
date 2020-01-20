@@ -1,4 +1,4 @@
-use crate::ribbon::RibbonOp::{AddWidet, GetOrientation, SetOrientation};
+use crate::ribbon::RibbonOp::{AddWidget, GetOrientation, RemoveWidget, SetOrientation};
 use crate::ribbon::RibbonOrientation::{Horizontal, Vertical};
 use crate::{Layout, Widget};
 use async_call::{register_service, send_request, serve_requests, ServiceRegistration, SrvId};
@@ -35,16 +35,20 @@ pub struct RibbonId(SrvId);
 
 #[derive(Debug)]
 pub enum RibbonOp {
-    AddWidet(Box<dyn Widget>),
+    AddWidget(Box<dyn Widget>),
+    RemoveWidget(SrvId),
     SetOrientation(RibbonOrientation),
     GetOrientation,
 }
 
 impl RibbonId {
     pub async fn add_widget(self, widget: impl Widget + 'static) {
-        send_request(self.0, AddWidet(Box::new(widget)))
+        send_request(self.0, AddWidget(Box::new(widget)))
             .await
             .unwrap()
+    }
+    pub async fn remove_widget(self, srv_id: SrvId) {
+        send_request(self.0, RemoveWidget(srv_id)).await.unwrap()
     }
     pub async fn set_orientation(self, orientation: RibbonOrientation) {
         send_request(self.0, SetOrientation(orientation))
@@ -89,6 +93,10 @@ impl Ribbon {
     pub fn add_widget(&mut self, widget: impl Widget + 'static) {
         self.add_widget_box(Box::new(widget))
     }
+    pub fn remove_widget(&mut self, id: SrvId) {
+        self.widgets.retain(|w| w.srv_id() != id);
+        self.update_widgets_rects();
+    }
     pub fn id(&self) -> RibbonId {
         RibbonId(self.reg.id())
     }
@@ -115,18 +123,28 @@ impl Ribbon {
     }
 }
 
+impl Widget for Ribbon {
+    fn srv_id(&self) -> SrvId {
+        self.reg.id()
+    }
+}
+
 impl EventHandler for Ribbon {
     fn update(&mut self, ctx: &mut Context) -> GameResult {
         serve_requests(self.reg.id(), |req| match req {
-            RibbonOp::AddWidet(w) => {
+            AddWidget(w) => {
                 self.add_widget_box(w);
                 Some(Box::new(()))
             }
-            RibbonOp::SetOrientation(orientation) => {
+            RemoveWidget(srv_id) => {
+                self.remove_widget(srv_id);
+                Some(Box::new(()))
+            }
+            SetOrientation(orientation) => {
                 self.set_orientation(orientation);
                 Some(Box::new(()))
             }
-            RibbonOp::GetOrientation => Some(Box::new(self.get_orientation())),
+            GetOrientation => Some(Box::new(self.get_orientation())),
         });
 
         for w in &mut self.widgets {

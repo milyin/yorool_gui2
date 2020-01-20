@@ -1,4 +1,4 @@
-use crate::Layout;
+use crate::{Layout, Widget};
 use async_call::{register_service, send_request, serve_requests, ServiceRegistration, SrvId};
 use ggez::event::{EventHandler, MouseButton};
 use ggez::graphics::Rect;
@@ -26,7 +26,7 @@ pub struct ButtonState {
     pub rect: Rect,
 }
 
-pub trait ButtonSkin: EventHandler + Default {
+pub trait ButtonSkin: EventHandler + Default + Send {
     fn set_state(&mut self, state: &ButtonState);
     fn is_hot_area(&self, x: f32, y: f32) -> bool;
 }
@@ -68,11 +68,20 @@ impl<S: ButtonSkin> Button<S> {
     pub fn id(&self) -> ButtonId {
         ButtonId(self.reg.id())
     }
-    pub fn mode(&mut self, mode: ButtonMode) {
+    pub fn set_mode(&mut self, mode: ButtonMode) {
         self.state.mode = mode
+    }
+    pub fn get_mode(&mut self) -> ButtonMode {
+        self.state.mode
     }
     pub fn on_click<F: Fn(&mut Button<S>) + Send + 'static>(&mut self, f: F) {
         self.on_click_handlers.push(Box::new(f))
+    }
+}
+
+impl<S: ButtonSkin> Widget for Button<S> {
+    fn srv_id(&self) -> SrvId {
+        self.reg.id()
     }
 }
 
@@ -149,8 +158,8 @@ impl<S: ButtonSkin> ButtonBuilder<S> {
             button: Button::new(),
         }
     }
-    pub fn mode(mut self, mode: ButtonMode) -> Self {
-        self.button.mode(mode);
+    pub fn set_mode(mut self, mode: ButtonMode) -> Self {
+        self.button.set_mode(mode);
         self
     }
     pub fn on_click<F: Fn(&mut Button<S>) + Send + 'static>(mut self, f: F) -> Self {

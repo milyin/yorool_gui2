@@ -16,10 +16,10 @@ struct GuiDemoState {
 impl GuiDemoState {
     fn new() -> Self {
         let checkbox1 = DefaultButtonBuilder::new()
-            .mode(ButtonMode::Checkbox(false))
+            .set_mode(ButtonMode::Checkbox(false))
             .build();
         let checkbox2 = DefaultButtonBuilder::new()
-            .mode(ButtonMode::Checkbox(true))
+            .set_mode(ButtonMode::Checkbox(true))
             .build();
         let checkbox1id = checkbox1.id();
         let checkbox2id = checkbox2.id();
@@ -30,7 +30,7 @@ impl GuiDemoState {
             .build();
         let checkboxesid = checkboxes.id();
         let button_add = DefaultButtonBuilder::new()
-            .mode(ButtonMode::Button)
+            .set_mode(ButtonMode::Button)
             .on_click(move |_| {
                 task::spawn(async move {
                     checkbox1id.set_mode(ButtonMode::Checkbox(false)).await;
@@ -38,7 +38,15 @@ impl GuiDemoState {
                     checkboxesid
                         .add_widget(
                             DefaultButtonBuilder::new()
-                                .mode(ButtonMode::Checkbox(false))
+                                .set_mode(ButtonMode::Checkbox(false))
+                                .on_click(move |checkbox| {
+                                    if let ButtonMode::Checkbox(false) = checkbox.get_mode() {
+                                        let srv_id = checkbox.srv_id();
+                                        task::spawn(async move {
+                                            checkboxesid.remove_widget(srv_id).await;
+                                        });
+                                    }
+                                })
                                 .build(),
                         )
                         .await;
@@ -46,7 +54,7 @@ impl GuiDemoState {
             })
             .build();
         let button_rotate = DefaultButtonBuilder::new()
-            .mode(ButtonMode::Button)
+            .set_mode(ButtonMode::Button)
             .on_click(move |_| {
                 task::spawn(async move {
                     let rotation = checkboxesid.get_orientation().await;
