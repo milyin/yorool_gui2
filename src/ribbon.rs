@@ -1,13 +1,26 @@
-use crate::ribbon::RibbonOp::AddWidet;
+use crate::ribbon::RibbonOp::{AddWidet, GetOrientation, SetOrientation};
+use crate::ribbon::RibbonOrientation::{Horizontal, Vertical};
 use crate::{Layout, Widget};
 use async_call::{register_service, send_request, serve_requests, ServiceRegistration, SrvId};
 use ggez::event::{EventHandler, MouseButton};
 use ggez::graphics::Rect;
 use ggez::{Context, GameResult};
+use std::ops::Not;
 
+#[derive(Copy, Clone, Debug)]
 pub enum RibbonOrientation {
     Horizontal,
     Vertical,
+}
+
+impl Not for RibbonOrientation {
+    type Output = Self;
+    fn not(self) -> Self::Output {
+        match self {
+            Horizontal => Vertical,
+            Vertical => Horizontal,
+        }
+    }
 }
 
 pub struct Ribbon {
@@ -23,6 +36,8 @@ pub struct RibbonId(SrvId);
 #[derive(Debug)]
 pub enum RibbonOp {
     AddWidet(Box<dyn Widget>),
+    SetOrientation(RibbonOrientation),
+    GetOrientation,
 }
 
 impl RibbonId {
@@ -30,6 +45,14 @@ impl RibbonId {
         send_request(self.0, AddWidet(Box::new(widget)))
             .await
             .unwrap()
+    }
+    pub async fn set_orientation(self, orientation: RibbonOrientation) {
+        send_request(self.0, SetOrientation(orientation))
+            .await
+            .unwrap()
+    }
+    pub async fn get_orientation(self) -> RibbonOrientation {
+        send_request(self.0, GetOrientation).await.unwrap()
     }
 }
 
@@ -52,8 +75,12 @@ impl Ribbon {
             reg: register_service(),
         }
     }
-    pub fn orientation(&mut self, orientation: RibbonOrientation) {
-        self.orientation = orientation
+    pub fn set_orientation(&mut self, orientation: RibbonOrientation) {
+        self.orientation = orientation;
+        self.update_widgets_rects();
+    }
+    pub fn get_orientation(&self) -> RibbonOrientation {
+        self.orientation
     }
     pub fn add_widget_box(&mut self, widget: Box<dyn Widget>) {
         self.widgets.push(widget);
@@ -95,6 +122,11 @@ impl EventHandler for Ribbon {
                 self.add_widget_box(w);
                 Some(Box::new(()))
             }
+            RibbonOp::SetOrientation(orientation) => {
+                self.set_orientation(orientation);
+                Some(Box::new(()))
+            }
+            RibbonOp::GetOrientation => Some(Box::new(self.get_orientation())),
         });
 
         for w in &mut self.widgets {
@@ -133,8 +165,8 @@ impl RibbonBuilder {
             ribbon: Ribbon::new(),
         }
     }
-    pub fn orientation(mut self, orientation: RibbonOrientation) -> Self {
-        self.ribbon.orientation(orientation);
+    pub fn set_orientation(mut self, orientation: RibbonOrientation) -> Self {
+        self.ribbon.set_orientation(orientation);
         self
     }
     pub fn add_widget(mut self, widget: impl Widget + 'static) -> Self {

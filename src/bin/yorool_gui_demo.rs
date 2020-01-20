@@ -24,33 +24,46 @@ impl GuiDemoState {
         let checkbox1id = checkbox1.id();
         let checkbox2id = checkbox2.id();
         let checkboxes = DefaultRibbonBuilder::new()
-            .orientation(RibbonOrientation::Horizontal)
+            .set_orientation(RibbonOrientation::Horizontal)
             .add_widget(checkbox1)
             .add_widget(checkbox2)
             .build();
         let checkboxesid = checkboxes.id();
-        let button = DefaultButtonBuilder::new()
+        let button_add = DefaultButtonBuilder::new()
             .mode(ButtonMode::Button)
-            .on_click({
-                move |_| {
-                    task::spawn(async move {
-                        checkbox1id.set_mode(ButtonMode::Checkbox(false)).await;
-                        checkbox2id.set_mode(ButtonMode::Checkbox(false)).await;
-                        checkboxesid
-                            .add_widget(
-                                DefaultButtonBuilder::new()
-                                    .mode(ButtonMode::Checkbox(false))
-                                    .build(),
-                            )
-                            .await;
-                    });
-                }
+            .on_click(move |_| {
+                task::spawn(async move {
+                    checkbox1id.set_mode(ButtonMode::Checkbox(false)).await;
+                    checkbox2id.set_mode(ButtonMode::Checkbox(false)).await;
+                    checkboxesid
+                        .add_widget(
+                            DefaultButtonBuilder::new()
+                                .mode(ButtonMode::Checkbox(false))
+                                .build(),
+                        )
+                        .await;
+                });
+            })
+            .build();
+        let button_rotate = DefaultButtonBuilder::new()
+            .mode(ButtonMode::Button)
+            .on_click(move |_| {
+                task::spawn(async move {
+                    let rotation = checkboxesid.get_orientation().await;
+                    checkboxesid.set_orientation(!rotation).await;
+                });
             })
             .build();
         let root = DefaultRibbonBuilder::new()
-            .orientation(RibbonOrientation::Vertical)
+            .set_orientation(RibbonOrientation::Vertical)
             .add_widget(checkboxes)
-            .add_widget(button)
+            .add_widget(
+                DefaultRibbonBuilder::new()
+                    .set_orientation(RibbonOrientation::Horizontal)
+                    .add_widget(button_add)
+                    .add_widget(button_rotate)
+                    .build(),
+            )
             .build();
         Self {
             root: Box::new(root),
