@@ -29,14 +29,7 @@ pub struct RibbonId(SrvId);
 
 #[derive(Debug)]
 pub enum RibbonOp {
-    None,
     AddWidet(Box<dyn Widget>),
-}
-
-impl Default for RibbonOp {
-    fn default() -> Self {
-        RibbonOp::None
-    }
 }
 
 impl RibbonId {
@@ -101,7 +94,6 @@ impl EventHandler for Ribbon {
                 self.add_widget_box(w);
                 Some(Box::new(()))
             }
-            RibbonOp::None => panic!("RibbonOp::None request not expected"),
         });
 
         for w in &mut self.widgets {

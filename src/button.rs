@@ -36,15 +36,8 @@ pub struct ButtonId(SrvId);
 
 #[derive(Debug)]
 enum ButtonOp {
-    None,
     GetMode,
     SetMode(ButtonMode),
-}
-
-impl Default for ButtonOp {
-    fn default() -> Self {
-        ButtonOp::None
-    }
 }
 
 impl ButtonId {
@@ -100,7 +93,6 @@ impl<S: ButtonSkin> EventHandler for Button<S> {
                 self.state.mode = mode;
                 Some(Box::new(()))
             }
-            ButtonOp::None => panic!("ButtonOp::None request not expected"),
         });
         self.skin.set_state(&self.state);
         Ok(())
