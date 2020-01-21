@@ -22,7 +22,6 @@ impl GuiDemoState {
             .set_mode(ButtonMode::Checkbox(true))
             .build();
         let checkbox1id = checkbox1.id();
-        let checkbox2id = checkbox2.id();
         let checkboxes = DefaultRibbonBuilder::new()
             .set_orientation(RibbonOrientation::Horizontal)
             .add_widget(checkbox1)
@@ -33,8 +32,14 @@ impl GuiDemoState {
             .set_mode(ButtonMode::Button)
             .on_click(move |_| {
                 task::spawn(async move {
-                    checkbox1id.set_mode(ButtonMode::Checkbox(false)).await;
-                    checkbox2id.set_mode(ButtonMode::Checkbox(false)).await;
+                    checkbox1id
+                        .on_click(move |_| {
+                            task::spawn(async move {
+                                let rotation = checkboxesid.get_orientation().await;
+                                checkboxesid.set_orientation(!rotation).await;
+                            });
+                        })
+                        .await;
                     checkboxesid
                         .add_widget(
                             DefaultButtonBuilder::new()
@@ -57,6 +62,7 @@ impl GuiDemoState {
             .set_mode(ButtonMode::Button)
             .on_click(move |_| {
                 task::spawn(async move {
+                    checkbox1id.remove_on_click(0).await;
                     let rotation = checkboxesid.get_orientation().await;
                     checkboxesid.set_orientation(!rotation).await;
                 });

@@ -4,7 +4,7 @@ use ggez::graphics::{self, Align, DrawMode, DrawParam, MeshBuilder, Rect, Text};
 use ggez::nalgebra::Point2;
 use ggez::{Context, GameResult};
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct DefaultButtonSkin {
     state: ButtonState,
 }

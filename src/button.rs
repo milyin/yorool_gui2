@@ -4,6 +4,8 @@ use ggez::event::{EventHandler, MouseButton};
 use ggez::graphics::Rect;
 use ggez::{Context, GameResult};
 use indexmap::map::IndexMap;
+use std::fmt::{Debug, Formatter};
+use std::marker::PhantomData;
 
 #[derive(Copy, Clone, Debug)]
 pub enum ButtonMode {
@@ -19,7 +21,7 @@ impl Default for ButtonMode {
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub struct ButtonState {
     pub mode: ButtonMode,
     pub touched: bool,
@@ -27,26 +29,56 @@ pub struct ButtonState {
     pub rect: Rect,
 }
 
-pub trait ButtonSkin: EventHandler + Default + Send {
+pub trait ButtonSkin: EventHandler + Default + Debug + Send {
     fn set_state(&mut self, state: &ButtonState);
     fn is_hot_area(&self, x: f32, y: f32) -> bool;
 }
 
-#[derive(Copy, Clone)]
-pub struct ButtonId(SrvId);
+pub struct ButtonId<S: ButtonSkin>(SrvId, PhantomData<S>);
 
-#[derive(Debug)]
-enum ButtonOp {
+impl<S: ButtonSkin> Clone for ButtonId<S> {
+    fn clone(&self) -> Self {
+        Self(self.0, PhantomData)
+    }
+}
+impl<S: ButtonSkin> Copy for ButtonId<S> {}
+
+enum ButtonOp<S: ButtonSkin> {
     GetMode,
     SetMode(ButtonMode),
+    OnClick(Box<dyn Fn(&mut Button<S>) + Send>),
+    RemoveOnClick(usize),
 }
 
-impl ButtonId {
+impl<S: ButtonSkin> Debug for ButtonOp<S> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ButtonOp::GetMode => write!(f, "GetMode"),
+            ButtonOp::SetMode(mode) => write!(f, "SetMode({:?}", mode),
+            ButtonOp::OnClick(_) => write!(f, "OnClick"),
+            ButtonOp::RemoveOnClick(handler_id) => write!(f, "RemoveOnClick({:?})", handler_id),
+        }
+    }
+}
+
+impl<S: ButtonSkin + 'static> ButtonId<S> {
     pub async fn get_mode(self) -> ButtonMode {
-        send_request(self.0, ButtonOp::GetMode).await.unwrap()
+        send_request(self.0, ButtonOp::<S>::GetMode).await.unwrap()
     }
     pub async fn set_mode(self, mode: ButtonMode) {
-        send_request(self.0, ButtonOp::SetMode(mode)).await.unwrap()
+        send_request(self.0, ButtonOp::<S>::SetMode(mode))
+            .await
+            .unwrap()
+    }
+    pub async fn on_click<F: Fn(&mut Button<S>) + Send + 'static>(self, f: F) -> usize {
+        send_request(self.0, ButtonOp::<S>::OnClick(Box::new(f)))
+            .await
+            .unwrap()
+    }
+    pub async fn remove_on_click(self, handler_id: usize) {
+        send_request(self.0, ButtonOp::<S>::RemoveOnClick(handler_id))
+            .await
+            .unwrap()
     }
 }
 
@@ -66,8 +98,8 @@ impl<S: ButtonSkin> Button<S> {
             on_click_handlers: IndexMap::new(),
         }
     }
-    pub fn id(&self) -> ButtonId {
-        ButtonId(self.reg.id())
+    pub fn id(&self) -> ButtonId<S> {
+        ButtonId(self.reg.id(), PhantomData)
     }
     pub fn set_mode(&mut self, mode: ButtonMode) {
         self.state.mode = mode
@@ -75,15 +107,18 @@ impl<S: ButtonSkin> Button<S> {
     pub fn get_mode(&mut self) -> ButtonMode {
         self.state.mode
     }
+    pub fn on_click_box(&mut self, handler: Box<dyn Fn(&mut Self) + Send>) -> usize {
+        add_to_indexmap(&mut self.on_click_handlers, handler)
+    }
     pub fn on_click<F: Fn(&mut Button<S>) + Send + 'static>(&mut self, f: F) -> usize {
-        add_to_indexmap(&mut self.on_click_handlers, Box::new(f))
+        self.on_click_box(Box::new(f))
     }
     pub fn remove_on_click(&mut self, handler_id: usize) {
         self.on_click_handlers.remove(&handler_id);
     }
 }
 
-impl<S: ButtonSkin> Widget for Button<S> {
+impl<S: ButtonSkin + 'static> Widget for Button<S> {
     fn srv_id(&self) -> SrvId {
         self.reg.id()
     }
@@ -98,12 +133,20 @@ impl<S: ButtonSkin> Layout for Button<S> {
     }
 }
 
-impl<S: ButtonSkin> EventHandler for Button<S> {
+impl<S: ButtonSkin + 'static> EventHandler for Button<S> {
     fn update(&mut self, _ctx: &mut Context) -> GameResult {
         serve_requests(self.reg.id(), |req| match req {
-            ButtonOp::GetMode => Some(Box::new(self.state.mode)),
-            ButtonOp::SetMode(mode) => {
+            ButtonOp::<S>::GetMode => Some(Box::new(self.state.mode)),
+            ButtonOp::<S>::SetMode(mode) => {
                 self.state.mode = mode;
+                Some(Box::new(()))
+            }
+            ButtonOp::<S>::OnClick(handler) => {
+                let handler_id = self.on_click_box(handler);
+                Some(Box::new(handler_id))
+            }
+            ButtonOp::<S>::RemoveOnClick(handler_id) => {
+                self.remove_on_click(handler_id);
                 Some(Box::new(()))
             }
         });
