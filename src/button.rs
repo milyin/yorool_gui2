@@ -1,8 +1,9 @@
-use crate::{Layout, Widget};
+use crate::{add_to_indexmap, Layout, Widget};
 use async_call::{register_service, send_request, serve_requests, ServiceRegistration, SrvId};
 use ggez::event::{EventHandler, MouseButton};
 use ggez::graphics::Rect;
 use ggez::{Context, GameResult};
+use indexmap::map::IndexMap;
 
 #[derive(Copy, Clone, Debug)]
 pub enum ButtonMode {
@@ -53,7 +54,7 @@ pub struct Button<S: ButtonSkin> {
     state: ButtonState,
     skin: S,
     reg: ServiceRegistration,
-    on_click_handlers: Vec<Box<dyn Fn(&mut Self) + Send>>,
+    on_click_handlers: IndexMap<usize, Box<dyn Fn(&mut Self) + Send>>,
 }
 
 impl<S: ButtonSkin> Button<S> {
@@ -62,7 +63,7 @@ impl<S: ButtonSkin> Button<S> {
             state: ButtonState::default(),
             skin: S::default(),
             reg: register_service(),
-            on_click_handlers: Vec::new(),
+            on_click_handlers: IndexMap::new(),
         }
     }
     pub fn id(&self) -> ButtonId {
@@ -74,8 +75,11 @@ impl<S: ButtonSkin> Button<S> {
     pub fn get_mode(&mut self) -> ButtonMode {
         self.state.mode
     }
-    pub fn on_click<F: Fn(&mut Button<S>) + Send + 'static>(&mut self, f: F) {
-        self.on_click_handlers.push(Box::new(f))
+    pub fn on_click<F: Fn(&mut Button<S>) + Send + 'static>(&mut self, f: F) -> usize {
+        add_to_indexmap(&mut self.on_click_handlers, Box::new(f))
+    }
+    pub fn remove_on_click(&mut self, handler_id: usize) {
+        self.on_click_handlers.remove(&handler_id);
     }
 }
 
@@ -137,8 +141,8 @@ impl<S: ButtonSkin> EventHandler for Button<S> {
                         }
                         _ => panic!(),
                     }
-                    let handlers = std::mem::replace(&mut self.on_click_handlers, Vec::new());
-                    for handler in &handlers {
+                    let handlers = std::mem::replace(&mut self.on_click_handlers, IndexMap::new());
+                    for (_, handler) in &handlers {
                         handler(self);
                     }
                     self.on_click_handlers = handlers;
