@@ -4,9 +4,9 @@ use ggez::event;
 use ggez::event::{EventHandler, MouseButton};
 use ggez::graphics::{self, Color};
 use ggez::{Context, ContextBuilder, GameResult};
-use yorool_gui2::button::ButtonMode;
+use yorool_gui2::button::ButtonMode::{Button, Checkbox};
 use yorool_gui2::default_skin::{DefaultButtonBuilder, DefaultRibbonBuilder};
-use yorool_gui2::ribbon::RibbonOrientation;
+use yorool_gui2::ribbon::RibbonOrientation::{Horizontal, Vertical};
 use yorool_gui2::Widget;
 
 struct GuiDemoState {
@@ -14,7 +14,42 @@ struct GuiDemoState {
 }
 
 impl GuiDemoState {
+    fn button_panel() -> impl Widget {
+        let add_button = DefaultButtonBuilder::new()
+            .set_label("Add")
+            .set_mode(Button)
+            .build();
+        let remove_button = DefaultButtonBuilder::new()
+            .set_label("Remove")
+            .set_mode(Button)
+            .build();
+        DefaultRibbonBuilder::new()
+            .set_orientation(Horizontal)
+            .add_widget(add_button)
+            .add_widget(remove_button)
+            .build()
+    }
+
+    fn radio_panel() -> impl Widget {
+        DefaultRibbonBuilder::new()
+            .set_orientation(Horizontal)
+            .build()
+    }
+
+    fn panel() -> impl Widget {
+        DefaultRibbonBuilder::new()
+            .set_orientation(Vertical)
+            .add_widget(Self::radio_panel())
+            .add_widget(Self::button_panel())
+            .build()
+    }
+
     fn new() -> Self {
+        Self {
+            root: Box::new(Self::panel()),
+        }
+    }
+    /*    fn new() -> Self {
         let checkbox1 = DefaultButtonBuilder::new()
             .set_mode(ButtonMode::Checkbox(false))
             .build();
@@ -83,6 +118,7 @@ impl GuiDemoState {
             root: Box::new(root),
         }
     }
+    */
 }
 
 impl EventHandler for GuiDemoState {

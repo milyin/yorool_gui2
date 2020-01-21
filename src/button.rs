@@ -46,6 +46,8 @@ impl<S: ButtonSkin> Copy for ButtonId<S> {}
 enum ButtonOp<S: ButtonSkin> {
     GetMode,
     SetMode(ButtonMode),
+    GetLabel,
+    SetLabel(String),
     OnClick(Box<dyn Fn(&mut Button<S>) + Send>),
     RemoveOnClick(usize),
 }
@@ -55,6 +57,8 @@ impl<S: ButtonSkin> Debug for ButtonOp<S> {
         match self {
             ButtonOp::GetMode => write!(f, "GetMode"),
             ButtonOp::SetMode(mode) => write!(f, "SetMode({:?}", mode),
+            ButtonOp::GetLabel => write!(f, "GetLabel"),
+            ButtonOp::SetLabel(label) => write!(f, "SetLabel({:?})", label),
             ButtonOp::OnClick(_) => write!(f, "OnClick"),
             ButtonOp::RemoveOnClick(handler_id) => write!(f, "RemoveOnClick({:?})", handler_id),
         }
@@ -67,6 +71,14 @@ impl<S: ButtonSkin + 'static> ButtonId<S> {
     }
     pub async fn set_mode(self, mode: ButtonMode) {
         send_request(self.0, ButtonOp::<S>::SetMode(mode))
+            .await
+            .unwrap()
+    }
+    pub async fn get_label(self) -> String {
+        send_request(self.0, ButtonOp::<S>::GetLabel).await.unwrap()
+    }
+    pub async fn set_label(self, label: String) {
+        send_request(self.0, ButtonOp::<S>::SetLabel(label))
             .await
             .unwrap()
     }
@@ -107,6 +119,12 @@ impl<S: ButtonSkin> Button<S> {
     pub fn get_mode(&mut self) -> ButtonMode {
         self.state.mode
     }
+    pub fn set_label(&mut self, label: String) {
+        self.state.label = label
+    }
+    pub fn get_label(&self) -> &str {
+        self.state.label.as_str()
+    }
     pub fn on_click_box(&mut self, handler: Box<dyn Fn(&mut Self) + Send>) -> usize {
         add_to_indexmap(&mut self.on_click_handlers, handler)
     }
@@ -136,9 +154,14 @@ impl<S: ButtonSkin> Layout for Button<S> {
 impl<S: ButtonSkin + 'static> EventHandler for Button<S> {
     fn update(&mut self, _ctx: &mut Context) -> GameResult {
         serve_requests(self.reg.id(), |req| match req {
-            ButtonOp::<S>::GetMode => Some(Box::new(self.state.mode)),
+            ButtonOp::<S>::GetMode => Some(Box::new(self.get_mode())),
             ButtonOp::<S>::SetMode(mode) => {
-                self.state.mode = mode;
+                self.set_mode(mode);
+                Some(Box::new(()))
+            }
+            ButtonOp::<S>::GetLabel => Some(Box::new(self.get_label().to_string())),
+            ButtonOp::<S>::SetLabel(label) => {
+                self.set_label(label);
                 Some(Box::new(()))
             }
             ButtonOp::<S>::OnClick(handler) => {
@@ -207,6 +230,10 @@ impl<S: ButtonSkin> ButtonBuilder<S> {
     }
     pub fn set_mode(mut self, mode: ButtonMode) -> Self {
         self.button.set_mode(mode);
+        self
+    }
+    pub fn set_label<T: Into<String>>(mut self, label: T) -> Self {
+        self.button.set_label(label.into());
         self
     }
     pub fn on_click<F: Fn(&mut Button<S>) + Send + 'static>(mut self, f: F) -> Self {
