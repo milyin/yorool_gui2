@@ -1,6 +1,6 @@
 use crate::ribbon::RibbonOp::{AddWidget, GetOrientation, RemoveWidget, SetOrientation};
 use crate::ribbon::RibbonOrientation::{Horizontal, Vertical};
-use crate::{Layout, Widget};
+use crate::{EventHandlerProxy, Layout, Widget};
 use async_call::{register_service, send_request, serve_requests, ServiceRegistration, SrvId};
 use ggez::event::{EventHandler, MouseButton};
 use ggez::graphics::Rect;
@@ -129,7 +129,7 @@ impl Widget for Ribbon {
     }
 }
 
-impl EventHandler for Ribbon {
+impl EventHandlerProxy for Ribbon {
     fn update(&mut self, ctx: &mut Context) -> GameResult {
         serve_requests(self.reg.id(), |req| match req {
             AddWidget(w) => {

@@ -1,6 +1,6 @@
-use crate::{add_to_indexmap, Layout, Widget};
+use crate::{add_to_indexmap, EventHandlerProxy, Layout, Widget};
 use async_call::{register_service, send_request, serve_requests, ServiceRegistration, SrvId};
-use ggez::event::{EventHandler, MouseButton};
+use ggez::event::MouseButton;
 use ggez::graphics::Rect;
 use ggez::{Context, GameResult};
 use indexmap::map::IndexMap;
@@ -29,7 +29,7 @@ pub struct ButtonState {
     pub rect: Rect,
 }
 
-pub trait ButtonSkin: EventHandler + Default + Debug + Send {
+pub trait ButtonSkin: EventHandlerProxy + Default + Debug + Send {
     fn set_state(&mut self, state: &ButtonState);
     fn is_hot_area(&self, x: f32, y: f32) -> bool;
 }
@@ -151,7 +151,7 @@ impl<S: ButtonSkin> Layout for Button<S> {
     }
 }
 
-impl<S: ButtonSkin + 'static> EventHandler for Button<S> {
+impl<S: ButtonSkin + 'static> EventHandlerProxy for Button<S> {
     fn update(&mut self, _ctx: &mut Context) -> GameResult {
         serve_requests(self.reg.id(), |req| match req {
             ButtonOp::<S>::GetMode => Some(Box::new(self.get_mode())),

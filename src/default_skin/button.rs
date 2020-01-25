@@ -1,5 +1,5 @@
 use crate::button::{ButtonMode, ButtonSkin, ButtonState};
-use ggez::event::EventHandler;
+use crate::EventHandlerProxy;
 use ggez::graphics::{self, Align, DrawMode, DrawParam, MeshBuilder, Rect, Text};
 use ggez::nalgebra::Point2;
 use ggez::{Context, GameResult};
@@ -29,7 +29,7 @@ fn button_rect(mut rect: Rect, touched: bool) -> Rect {
     rect
 }
 
-impl EventHandler for DefaultButtonSkin {
+impl EventHandlerProxy for DefaultButtonSkin {
     fn update(&mut self, _ctx: &mut Context) -> GameResult {
         Ok(())
     }
