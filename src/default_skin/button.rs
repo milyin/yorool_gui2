@@ -36,7 +36,7 @@ impl EventHandlerProxy for DefaultButtonSkin {
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult {
         match &self.state.mode {
-            ButtonMode::Button => {
+            ButtonMode::PressButton => {
                 let rect = button_rect(self.state.rect, self.state.touched);
                 let mesh = MeshBuilder::new()
                     .rectangle(DrawMode::fill(), rect, graphics::WHITE)

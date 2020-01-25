@@ -5,25 +5,42 @@ use ggez::event::{EventHandler, MouseButton};
 use ggez::graphics::{self, Color};
 use ggez::{Context, ContextBuilder, GameResult};
 use std::sync::{Arc, Mutex};
-use yorool_gui2::button::ButtonMode::{Button, Checkbox};
-use yorool_gui2::default_skin::{ButtonBuilder, ButtonId, RibbonBuilder};
+use yorool_gui2::button::ButtonMode::{Checkbox, PressButton};
+use yorool_gui2::default_skin::{Button, ButtonBuilder, ButtonId, RibbonBuilder};
 use yorool_gui2::ribbon::RibbonOrientation::{Horizontal, Vertical};
+use yorool_gui2::ribbon::{Ribbon, RibbonId};
 use yorool_gui2::{EventHandlerProxy, Layout, Widget, WidgetGroup};
 
 struct DemoPanel {
-    //    checkboxes: Vec<ButtonId>,
+    ribbon_id: RibbonId,
+    button_ids: Vec<ButtonId>,
     root: Box<dyn Widget>,
 }
 
 impl DemoPanel {
+    async fn add_radio(&mut self) -> ButtonId {
+        let radio = ButtonBuilder::new()
+            .set_mode(Checkbox(false))
+            .set_label(self.button_ids.len().to_string())
+            .build();
+        self.button_ids.push(radio.id());
+        let radio_id = radio.id();
+        self.ribbon_id.add_widget(radio).await;
+        radio_id
+    }
+
+    async fn remove_radio(&mut self, radio_id: ButtonId) {
+        self.ribbon_id.remove_widget(radio_id.into()).await;
+    }
+
     fn button_panel() -> impl Widget {
         let add_button = ButtonBuilder::new()
             .set_label("Add")
-            .set_mode(Button)
+            .set_mode(PressButton)
             .build();
         let remove_button = ButtonBuilder::new()
             .set_label("Remove")
-            .set_mode(Button)
+            .set_mode(PressButton)
             .build();
         RibbonBuilder::new()
             .set_orientation(Horizontal)
@@ -32,21 +49,20 @@ impl DemoPanel {
             .build()
     }
 
-    fn radio_panel() -> impl Widget {
-        RibbonBuilder::new().set_orientation(Horizontal).build()
-    }
-
-    fn panel() -> impl Widget {
+    fn panel(ribbon: Ribbon) -> impl Widget {
         RibbonBuilder::new()
             .set_orientation(Vertical)
-            .add_widget(Self::radio_panel())
+            .add_widget(ribbon)
             .add_widget(Self::button_panel())
             .build()
     }
 
     fn new() -> Self {
+        let ribbon = RibbonBuilder::new().set_orientation(Horizontal).build();
         Self {
-            root: Box::new(Self::panel()),
+            ribbon_id: ribbon.id(),
+            button_ids: Vec::new(),
+            root: Box::new(Self::panel(ribbon)),
         }
     }
 }

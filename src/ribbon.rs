@@ -2,7 +2,7 @@ use crate::ribbon::RibbonOp::{AddWidget, GetOrientation, RemoveWidget, SetOrient
 use crate::ribbon::RibbonOrientation::{Horizontal, Vertical};
 use crate::{EventHandlerProxy, Layout, Widget};
 use async_call::{register_service, send_request, serve_requests, ServiceRegistration, SrvId};
-use ggez::event::{EventHandler, MouseButton};
+use ggez::event::MouseButton;
 use ggez::graphics::Rect;
 use ggez::{Context, GameResult};
 use std::ops::Not;

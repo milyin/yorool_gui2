@@ -9,7 +9,7 @@ use std::marker::PhantomData;
 
 #[derive(Copy, Clone, Debug)]
 pub enum ButtonMode {
-    Button,
+    PressButton,
     Checkbox(bool),
     Radio(bool),
     //Checkbox3State(), - or even N-state, may be added later
@@ -17,7 +17,7 @@ pub enum ButtonMode {
 
 impl Default for ButtonMode {
     fn default() -> Self {
-        ButtonMode::Button
+        ButtonMode::PressButton
     }
 }
 
@@ -35,6 +35,12 @@ pub trait ButtonSkin: EventHandlerProxy + Default + Debug + Send {
 }
 
 pub struct ButtonId<S: ButtonSkin>(SrvId, PhantomData<S>);
+
+impl<S: ButtonSkin> From<ButtonId<S>> for SrvId {
+    fn from(v: ButtonId<S>) -> SrvId {
+        v.0
+    }
+}
 
 impl<S: ButtonSkin> Clone for ButtonId<S> {
     fn clone(&self) -> Self {
@@ -201,7 +207,7 @@ impl<S: ButtonSkin + 'static> EventHandlerProxy for Button<S> {
                 self.state.touched = false;
                 if self.skin.is_hot_area(x, y) {
                     match &self.state.mode {
-                        ButtonMode::Button => {}
+                        ButtonMode::PressButton => {}
                         ButtonMode::Checkbox(check) => {
                             self.state.mode = ButtonMode::Checkbox(!*check)
                         }
