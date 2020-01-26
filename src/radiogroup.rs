@@ -1,8 +1,12 @@
 use crate::button::ButtonId;
 use std::sync::{Arc, Mutex};
 
-struct RadioGroup {
+pub struct RadioGroupState {
     buttons: Vec<ButtonId>,
+}
+
+struct RadioGroup {
+    state: RadioGroupState,
 }
 
 impl RadioGroup {
