@@ -6,9 +6,9 @@ use ggez::graphics::{self, Color};
 use ggez::{Context, ContextBuilder, GameResult};
 use std::sync::{Arc, Mutex};
 use yorool_gui2::button::ButtonMode::{Checkbox, PressButton};
-use yorool_gui2::default_skin::{Button, ButtonBuilder, ButtonId, RibbonBuilder};
+use yorool_gui2::default_skin::{ButtonBuilder, ButtonId, RibbonBuilder};
+use yorool_gui2::ribbon::RibbonId;
 use yorool_gui2::ribbon::RibbonOrientation::{Horizontal, Vertical};
-use yorool_gui2::ribbon::{Ribbon, RibbonId};
 use yorool_gui2::{EventHandlerProxy, Layout, Widget, WidgetGroup};
 
 struct DemoPanelState {
@@ -16,40 +16,55 @@ struct DemoPanelState {
     button_ids: Vec<ButtonId>,
 }
 
+fn add_radio(state: Arc<Mutex<DemoPanelState>>) {
+    task::spawn(async move {
+        let mut radio = ButtonBuilder::new().set_mode(Checkbox(false)).build();
+        let (n, ribbon_id) = {
+            let mut state = state.lock().unwrap();
+            state.button_ids.push(radio.id());
+            (state.button_ids.len(), state.ribbon_id)
+        };
+        radio.set_label(n.to_string());
+        ribbon_id.add_widget(radio).await;
+    });
+}
+
+fn remove_selected_radio(state: Arc<Mutex<DemoPanelState>>) {
+    task::spawn(async move {
+        let (button_ids, ribbon_id) = {
+            let state = state.lock().unwrap();
+            (state.button_ids.clone(), state.ribbon_id)
+        };
+        for radio_id in button_ids {
+            if let Checkbox(true) = radio_id.get_mode().await {
+                ribbon_id.remove_widget(radio_id.into()).await;
+            }
+        }
+    });
+}
+
 struct DemoPanel {
-    state: Arc<Mutex<DemoPanelState>>,
+    _state: Arc<Mutex<DemoPanelState>>,
     root: Box<dyn Widget>,
 }
 
 impl DemoPanel {
-    async fn add_radio(state: Arc<Mutex<DemoPanelState>>) {
-        let state = state.lock().unwrap();
-        let radio = ButtonBuilder::new()
-            .set_mode(Checkbox(false))
-            .set_label(state.button_ids.len().to_string())
-            .build();
-        state.button_ids.push(radio.id());
-        let radio_id = radio.id();
-        state.ribbon_id.add_widget(radio).await;
-    }
-
-    async fn remove_selected_radio(state: Arc<Mutex<DemoPanelState>>) {
-        let state = state.lock().unwrap();
-        for radio_id in state.button_ids {
-            if Checkbox(true) = radio_id.get_mode().await {
-                state.ribbon_id.remove_widget(radio_id.into()).await;
-            }
-        }
-    }
-
-    fn button_panel() -> impl Widget {
+    fn button_panel(state: &Arc<Mutex<DemoPanelState>>) -> impl Widget {
         let add_button = ButtonBuilder::new()
             .set_label("Add")
             .set_mode(PressButton)
+            .on_click({
+                let state = state.clone();
+                move |_| add_radio(state.clone())
+            })
             .build();
         let remove_button = ButtonBuilder::new()
             .set_label("Remove selected")
             .set_mode(PressButton)
+            .on_click({
+                let state = state.clone();
+                move |_| remove_selected_radio(state.clone())
+            })
             .build();
         RibbonBuilder::new()
             .set_orientation(Horizontal)
@@ -58,23 +73,24 @@ impl DemoPanel {
             .build()
     }
 
-    fn panel(ribbon: Ribbon) -> impl Widget {
+    fn panel(radios: impl Widget + 'static, buttons: impl Widget + 'static) -> impl Widget {
         RibbonBuilder::new()
             .set_orientation(Vertical)
-            .add_widget(ribbon)
-            .add_widget(Self::button_panel())
+            .add_widget(radios)
+            .add_widget(buttons)
             .build()
     }
 
     fn new() -> Self {
-        let ribbon = RibbonBuilder::new().set_orientation(Horizontal).build();
+        let radios = RibbonBuilder::new().set_orientation(Horizontal).build();
         let state = Arc::new(Mutex::new(DemoPanelState {
-            ribbon_id: ribbon.id(),
+            ribbon_id: radios.id(),
             button_ids: Vec::new(),
         }));
+        let buttons = Self::button_panel(&state);
         Self {
-            state: state.clone(),
-            root: Box::new(Self::panel(ribbon)),
+            _state: state,
+            root: Box::new(Self::panel(radios, buttons)),
         }
     }
 }
