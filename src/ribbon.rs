@@ -1,6 +1,6 @@
 use crate::ribbon::RibbonOp::{AddWidget, GetOrientation, RemoveWidget, SetOrientation};
 use crate::ribbon::RibbonOrientation::{Horizontal, Vertical};
-use crate::{EventHandlerProxy, Layout, Widget};
+use crate::{EventHandlerProxy, Widget};
 use async_call::{register_service, send_request, serve_requests, ServiceRegistration, SrvId};
 use ggez::event::MouseButton;
 use ggez::graphics::Rect;
@@ -60,16 +60,6 @@ impl RibbonId {
     }
 }
 
-impl Layout for Ribbon {
-    fn set_rect(&mut self, rect: Rect) {
-        self.rect = rect;
-        self.update_widgets_rects();
-    }
-    fn get_rect(&self) -> Rect {
-        self.rect
-    }
-}
-
 impl Ribbon {
     pub fn new() -> Self {
         Self {
@@ -126,6 +116,13 @@ impl Ribbon {
 impl Widget for Ribbon {
     fn srv_id(&self) -> SrvId {
         self.reg.id()
+    }
+    fn set_rect(&mut self, rect: Rect) {
+        self.rect = rect;
+        self.update_widgets_rects();
+    }
+    fn get_rect(&self) -> Rect {
+        self.rect
     }
 }
 

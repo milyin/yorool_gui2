@@ -9,7 +9,7 @@ use yorool_gui2::button::ButtonMode::{Checkbox, PressButton};
 use yorool_gui2::default_skin::{ButtonBuilder, ButtonId, RibbonBuilder};
 use yorool_gui2::ribbon::RibbonId;
 use yorool_gui2::ribbon::RibbonOrientation::{Horizontal, Vertical};
-use yorool_gui2::{EventHandlerProxy, Layout, Widget, WidgetGroup};
+use yorool_gui2::{EventHandlerProxy, Widget, WidgetGroup};
 
 struct DemoPanelState {
     ribbon_id: RibbonId,

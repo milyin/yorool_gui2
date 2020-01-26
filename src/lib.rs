@@ -10,11 +10,6 @@ pub mod default_skin;
 //pub mod radiogroup;
 pub mod ribbon;
 
-pub trait Layout {
-    fn set_rect(&mut self, rect: Rect);
-    fn get_rect(&self) -> Rect;
-}
-
 pub trait EventHandlerProxy {
     fn update(&mut self, ctx: &mut Context) -> GameResult;
     fn draw(&mut self, ctx: &mut Context) -> GameResult;
@@ -36,8 +31,10 @@ pub trait EventHandlerProxy {
     }
 }
 
-pub trait Widget: Layout + EventHandlerProxy + Send {
+pub trait Widget: EventHandlerProxy + Send {
     fn srv_id(&self) -> SrvId;
+    fn set_rect(&mut self, rect: Rect);
+    fn get_rect(&self) -> Rect;
 }
 impl Debug for dyn Widget {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -68,18 +65,6 @@ pub trait WidgetGroup: Send {
     fn root(&self) -> &Box<dyn Widget>;
 }
 
-impl<T> Layout for T
-where
-    T: WidgetGroup,
-{
-    fn set_rect(&mut self, rect: Rect) {
-        self.mut_root().set_rect(rect)
-    }
-    fn get_rect(&self) -> Rect {
-        self.root().get_rect()
-    }
-}
-
 impl<T> EventHandlerProxy for T
 where
     T: WidgetGroup,
@@ -107,6 +92,12 @@ where
 {
     fn srv_id(&self) -> SrvId {
         self.root().srv_id()
+    }
+    fn set_rect(&mut self, rect: Rect) {
+        self.mut_root().set_rect(rect)
+    }
+    fn get_rect(&self) -> Rect {
+        self.root().get_rect()
     }
 }
 

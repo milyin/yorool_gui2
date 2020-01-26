@@ -1,4 +1,4 @@
-use crate::{add_to_indexmap, EventHandlerProxy, Layout, Widget};
+use crate::{add_to_indexmap, EventHandlerProxy, Widget};
 use async_call::{register_service, send_request, serve_requests, ServiceRegistration, SrvId};
 use ggez::event::MouseButton;
 use ggez::graphics::Rect;
@@ -137,9 +137,6 @@ impl<S: ButtonSkin + 'static> Widget for Button<S> {
     fn srv_id(&self) -> SrvId {
         self.reg.id()
     }
-}
-
-impl<S: ButtonSkin> Layout for Button<S> {
     fn set_rect(&mut self, rect: Rect) {
         self.state.rect = rect;
     }
