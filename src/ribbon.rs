@@ -92,21 +92,30 @@ impl Ribbon {
     }
     fn update_widgets_rects(&mut self) {
         let rect = self.rect;
+        let count = self
+            .widgets
+            .iter()
+            .filter(|w| w.get_rect().is_some())
+            .count() as f32;
         match &self.orientation {
             RibbonOrientation::Horizontal => {
-                let dw = rect.w / self.widgets.len() as f32;
+                let dw = rect.w / count;
                 let mut x = rect.x;
                 for w in &mut self.widgets {
-                    w.set_rect(Rect::new(x, rect.y, dw, rect.h));
-                    x += dw;
+                    if w.get_rect().is_some() {
+                        w.set_rect(Rect::new(x, rect.y, dw, rect.h));
+                        x += dw;
+                    }
                 }
             }
             RibbonOrientation::Vertical => {
-                let dh = rect.h / self.widgets.len() as f32;
+                let dh = rect.h / count;
                 let mut y = rect.y;
                 for w in &mut self.widgets {
-                    w.set_rect(Rect::new(rect.x, y, rect.w, dh));
-                    y += dh;
+                    if w.get_rect().is_some() {
+                        w.set_rect(Rect::new(rect.x, y, rect.w, dh));
+                        y += dh;
+                    }
                 }
             }
         }
@@ -121,8 +130,8 @@ impl Widget for Ribbon {
         self.rect = rect;
         self.update_widgets_rects();
     }
-    fn get_rect(&self) -> Rect {
-        self.rect
+    fn get_rect(&self) -> Option<Rect> {
+        Some(self.rect)
     }
 }
 

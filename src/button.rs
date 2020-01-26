@@ -140,8 +140,8 @@ impl<S: ButtonSkin + 'static> Widget for Button<S> {
     fn set_rect(&mut self, rect: Rect) {
         self.state.rect = rect;
     }
-    fn get_rect(&self) -> Rect {
-        self.state.rect
+    fn get_rect(&self) -> Option<Rect> {
+        Some(self.state.rect)
     }
 }
 

@@ -7,12 +7,16 @@ use std::fmt::{Debug, Formatter};
 
 pub mod button;
 pub mod default_skin;
-//pub mod radiogroup;
+pub mod radiogroup;
 pub mod ribbon;
 
 pub trait EventHandlerProxy {
-    fn update(&mut self, ctx: &mut Context) -> GameResult;
-    fn draw(&mut self, ctx: &mut Context) -> GameResult;
+    fn update(&mut self, ctx: &mut Context) -> GameResult {
+        Ok(())
+    }
+    fn draw(&mut self, ctx: &mut Context) -> GameResult {
+        Ok(())
+    }
     fn mouse_button_down_event(
         &mut self,
         _ctx: &mut Context,
@@ -33,8 +37,10 @@ pub trait EventHandlerProxy {
 
 pub trait Widget: EventHandlerProxy + Send {
     fn srv_id(&self) -> SrvId;
-    fn set_rect(&mut self, rect: Rect);
-    fn get_rect(&self) -> Rect;
+    fn set_rect(&mut self, rect: Rect) {}
+    fn get_rect(&self) -> Option<Rect> {
+        None
+    }
 }
 impl Debug for dyn Widget {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -96,7 +102,7 @@ where
     fn set_rect(&mut self, rect: Rect) {
         self.mut_root().set_rect(rect)
     }
-    fn get_rect(&self) -> Rect {
+    fn get_rect(&self) -> Option<Rect> {
         self.root().get_rect()
     }
 }
