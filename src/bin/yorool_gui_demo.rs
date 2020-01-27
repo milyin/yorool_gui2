@@ -5,35 +5,43 @@ use ggez::event::{EventHandler, MouseButton};
 use ggez::graphics::{self, Color};
 use ggez::{Context, ContextBuilder, GameResult};
 use std::sync::{Arc, Mutex};
-use yorool_gui2::button::ButtonMode::{Checkbox, PressButton};
+use yorool_gui2::button::ButtonMode::{Checkbox, PressButton, Radio};
 use yorool_gui2::default_skin::{ButtonBuilder, ButtonId, RibbonBuilder};
+use yorool_gui2::radiogroup::{RadioGroupBuilder, RadioGroupId};
 use yorool_gui2::ribbon::RibbonId;
 use yorool_gui2::ribbon::RibbonOrientation::{Horizontal, Vertical};
 use yorool_gui2::{EventHandlerProxy, Widget, WidgetGroup};
 
 struct DemoPanelState {
-    ribbon_id: RibbonId,
     button_ids: Vec<ButtonId>,
 }
 
-fn add_radio(state: Arc<Mutex<DemoPanelState>>) {
+fn add_checkbox_to_ribbon(ribbon_id: RibbonId, state: Arc<Mutex<DemoPanelState>>) {
     task::spawn(async move {
-        let mut radio = ButtonBuilder::new().set_mode(Checkbox(false)).build();
-        let (n, ribbon_id) = {
+        let mut checkbox = ButtonBuilder::new().set_mode(Checkbox(false)).build();
+        let n = {
             let mut state = state.lock().unwrap();
-            state.button_ids.push(radio.id());
-            (state.button_ids.len(), state.ribbon_id)
+            state.button_ids.push(checkbox.id());
+            state.button_ids.len()
         };
-        radio.set_label(n.to_string());
+        checkbox.set_label(n.to_string());
+        ribbon_id.add_widget(checkbox).await;
+    });
+}
+
+fn add_radio_to_ribbon(ribbon_id: RibbonId, radio_group_id: RadioGroupId) {
+    task::spawn(async move {
+        let radio = ButtonBuilder::new().set_mode(Radio(false)).build();
+        radio_group_id.add_radio(radio.id()).await;
         ribbon_id.add_widget(radio).await;
     });
 }
 
-fn remove_selected_radio(state: Arc<Mutex<DemoPanelState>>) {
+fn remove_selected(ribbon_id: RibbonId, state: Arc<Mutex<DemoPanelState>>) {
     task::spawn(async move {
-        let (button_ids, ribbon_id) = {
+        let button_ids = {
             let state = state.lock().unwrap();
-            (state.button_ids.clone(), state.ribbon_id)
+            state.button_ids.clone()
         };
         for radio_id in button_ids {
             if let Checkbox(true) = radio_id.get_mode().await {
@@ -49,48 +57,72 @@ struct DemoPanel {
 }
 
 impl DemoPanel {
-    fn button_panel(state: &Arc<Mutex<DemoPanelState>>) -> impl Widget {
-        let add_button = ButtonBuilder::new()
-            .set_label("Add")
+    fn button_panel(
+        state: &Arc<Mutex<DemoPanelState>>,
+        radio_ribbon_id: RibbonId,
+        radio_group_id: RadioGroupId,
+        checkbox_ribbon_id: RibbonId,
+    ) -> impl Widget {
+        let add_checkbox_button = ButtonBuilder::new()
+            .set_label("Add checkbox")
             .set_mode(PressButton)
             .on_click({
                 let state = state.clone();
-                move |_| add_radio(state.clone())
+                move |_| add_checkbox_to_ribbon(checkbox_ribbon_id, state.clone())
             })
+            .build();
+        let add_radio_button = ButtonBuilder::new()
+            .set_label("Add radio")
+            .set_mode(PressButton)
+            .on_click(move |_| add_radio_to_ribbon(radio_ribbon_id, radio_group_id))
             .build();
         let remove_button = ButtonBuilder::new()
             .set_label("Remove selected")
             .set_mode(PressButton)
             .on_click({
                 let state = state.clone();
-                move |_| remove_selected_radio(state.clone())
+                move |_| remove_selected(radio_ribbon_id, state.clone())
             })
             .build();
         RibbonBuilder::new()
             .set_orientation(Horizontal)
-            .add_widget(add_button)
+            .add_widget(add_checkbox_button)
+            .add_widget(add_radio_button)
             .add_widget(remove_button)
             .build()
     }
 
-    fn panel(radios: impl Widget + 'static, buttons: impl Widget + 'static) -> impl Widget {
+    fn panel(
+        radios: impl Widget + 'static,
+        checkboxes: impl Widget + 'static,
+        buttons: impl Widget + 'static,
+    ) -> impl Widget {
         RibbonBuilder::new()
             .set_orientation(Vertical)
             .add_widget(radios)
+            .add_widget(checkboxes)
             .add_widget(buttons)
             .build()
     }
 
     fn new() -> Self {
-        let radios = RibbonBuilder::new().set_orientation(Horizontal).build();
+        let radio_group = RadioGroupBuilder::new().build();
+        let radio_group_id = radio_group.id();
+        let radio_ribbon = RibbonBuilder::new()
+            .set_orientation(Horizontal)
+            .add_widget(radio_group)
+            .build();
+        let radio_ribbon_id = radio_ribbon.id();
+        let checkbox_ribbon = RibbonBuilder::new().set_orientation(Horizontal).build();
+        let checkbox_ribbon_id = checkbox_ribbon.id();
         let state = Arc::new(Mutex::new(DemoPanelState {
-            ribbon_id: radios.id(),
             button_ids: Vec::new(),
         }));
-        let buttons = Self::button_panel(&state);
+        let buttons =
+            Self::button_panel(&state, radio_ribbon_id, radio_group_id, checkbox_ribbon_id);
         Self {
             _state: state,
-            root: Box::new(Self::panel(radios, buttons)),
+            root: Box::new(Self::panel(radio_ribbon, checkbox_ribbon, buttons)),
         }
     }
 }
@@ -114,76 +146,6 @@ impl GuiDemoState {
             panel: DemoPanel::new(),
         }
     }
-    /*    fn new() -> Self {
-        let checkbox1 = ButtonBuilder::new()
-            .set_mode(ButtonMode::Checkbox(false))
-            .build();
-        let checkbox2 = ButtonBuilder::new()
-            .set_mode(ButtonMode::Checkbox(true))
-            .build();
-        let checkbox1id = checkbox1.id();
-        let checkboxes = RibbonBuilder::new()
-            .set_orientation(RibbonOrientation::Horizontal)
-            .add_widget(checkbox1)
-            .add_widget(checkbox2)
-            .build();
-        let checkboxesid = checkboxes.id();
-        let button_add = ButtonBuilder::new()
-            .set_mode(ButtonMode::Button)
-            .on_click(move |_| {
-                task::spawn(async move {
-                    checkbox1id
-                        .on_click(move |_| {
-                            task::spawn(async move {
-                                let rotation = checkboxesid.get_orientation().await;
-                                checkboxesid.set_orientation(!rotation).await;
-                            });
-                        })
-                        .await;
-                    checkboxesid
-                        .add_widget(
-                            ButtonBuilder::new()
-                                .set_mode(ButtonMode::Checkbox(false))
-                                .on_click(move |checkbox| {
-                                    if let ButtonMode::Checkbox(false) = checkbox.get_mode() {
-                                        let srv_id = checkbox.srv_id();
-                                        task::spawn(async move {
-                                            checkboxesid.remove_widget(srv_id).await;
-                                        });
-                                    }
-                                })
-                                .build(),
-                        )
-                        .await;
-                });
-            })
-            .build();
-        let button_rotate = ButtonBuilder::new()
-            .set_mode(ButtonMode::Button)
-            .on_click(move |_| {
-                task::spawn(async move {
-                    checkbox1id.remove_on_click(0).await;
-                    let rotation = checkboxesid.get_orientation().await;
-                    checkboxesid.set_orientation(!rotation).await;
-                });
-            })
-            .build();
-        let root = RibbonBuilder::new()
-            .set_orientation(RibbonOrientation::Vertical)
-            .add_widget(checkboxes)
-            .add_widget(
-                RibbonBuilder::new()
-                    .set_orientation(RibbonOrientation::Horizontal)
-                    .add_widget(button_add)
-                    .add_widget(button_rotate)
-                    .build(),
-            )
-            .build();
-        Self {
-            root: Box::new(root),
-        }
-    }
-    */
 }
 
 impl EventHandler for GuiDemoState {

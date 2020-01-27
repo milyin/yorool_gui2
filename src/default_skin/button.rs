@@ -66,8 +66,23 @@ impl EventHandlerProxy for DefaultButtonSkin {
                     .build(ctx)?;
                 graphics::draw(ctx, &mesh, DrawParam::default())
             }
-
-            _ => panic!(),
+            ButtonMode::Radio(checked) => {
+                let rect = base_rect(self.state.rect);
+                let mesh = MeshBuilder::new()
+                    .circle(
+                        if *checked {
+                            DrawMode::fill()
+                        } else {
+                            DrawMode::stroke(1.)
+                        },
+                        Point2::new(rect.x + rect.w / 2., rect.y + rect.h / 2.),
+                        rect.w.min(rect.h) / 2.,
+                        0.4,
+                        graphics::WHITE,
+                    )
+                    .build(ctx)?;
+                graphics::draw(ctx, &mesh, DrawParam::default())
+            }
         }
     }
 }

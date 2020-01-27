@@ -33,7 +33,7 @@ pub trait ButtonSkin: EventHandlerProxy + Default + Debug + Send {
     fn is_hot_area(&self, x: f32, y: f32) -> bool;
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct ButtonId(SrvId);
 
 impl From<ButtonId> for SrvId {
@@ -47,7 +47,7 @@ enum ButtonOp {
     SetMode(ButtonMode),
     GetLabel,
     SetLabel(String),
-    OnClick(Box<dyn Fn(&mut dyn Widget) + Send>),
+    OnClick(Box<dyn Fn(&mut dyn Widget) + Send + Sync>),
     RemoveOnClick(usize),
 }
 
@@ -79,7 +79,7 @@ impl ButtonId {
             .await
             .unwrap()
     }
-    pub async fn on_click<F: Fn(&mut dyn Widget) + Send + 'static>(self, f: F) -> usize {
+    pub async fn on_click<F: Fn(&mut dyn Widget) + Send + Sync + 'static>(self, f: F) -> usize {
         send_request(self.0, ButtonOp::OnClick(Box::new(f)))
             .await
             .unwrap()
@@ -95,7 +95,7 @@ pub struct Button<S: ButtonSkin> {
     state: ButtonState,
     skin: S,
     reg: ServiceRegistration,
-    on_click_handlers: IndexMap<usize, Box<dyn Fn(&mut dyn Widget) + Send>>,
+    on_click_handlers: IndexMap<usize, Box<dyn Fn(&mut dyn Widget) + Send + Sync>>,
 }
 
 impl<S: ButtonSkin> Button<S> {
@@ -122,10 +122,10 @@ impl<S: ButtonSkin> Button<S> {
     pub fn get_label(&self) -> &str {
         self.state.label.as_str()
     }
-    pub fn on_click_box(&mut self, handler: Box<dyn Fn(&mut dyn Widget) + Send>) -> usize {
+    pub fn on_click_box(&mut self, handler: Box<dyn Fn(&mut dyn Widget) + Send + Sync>) -> usize {
         add_to_indexmap(&mut self.on_click_handlers, handler)
     }
-    pub fn on_click<F: Fn(&mut dyn Widget) + Send + 'static>(&mut self, f: F) -> usize {
+    pub fn on_click<F: Fn(&mut dyn Widget) + Send + Sync + 'static>(&mut self, f: F) -> usize {
         self.on_click_box(Box::new(f))
     }
     pub fn remove_on_click(&mut self, handler_id: usize) {
@@ -199,7 +199,11 @@ impl<S: ButtonSkin + 'static> EventHandlerProxy for Button<S> {
                         ButtonMode::Checkbox(check) => {
                             self.state.mode = ButtonMode::Checkbox(!*check)
                         }
-                        _ => panic!(),
+                        ButtonMode::Radio(check) => {
+                            if !check {
+                                self.state.mode = ButtonMode::Radio(true)
+                            }
+                        }
                     }
                     let handlers = std::mem::replace(&mut self.on_click_handlers, IndexMap::new());
                     for (_, handler) in &handlers {
@@ -230,7 +234,7 @@ impl<S: ButtonSkin> ButtonBuilder<S> {
         self.button.set_label(label.into());
         self
     }
-    pub fn on_click<F: Fn(&mut dyn Widget) + Send + 'static>(mut self, f: F) -> Self {
+    pub fn on_click<F: Fn(&mut dyn Widget) + Send + Sync + 'static>(mut self, f: F) -> Self {
         self.button.on_click(f);
         self
     }
